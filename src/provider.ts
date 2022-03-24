@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import path from 'path';
-import fs from 'fs';
-import cp from 'child_process';
-import puppeteer from 'puppeteer-core';
 import { callMaybeAsync, MaybeAsync, PoemDataTypes } from '@/utils/constants';
 import createLogger, { logger, Logger, onerror } from '@/utils/logger';
+import cp from 'child_process';
 import * as coc from 'coc.nvim';
+import fs from 'fs';
+import path from 'path';
+import puppeteer from 'puppeteer-core';
 import { PoemConfig } from './config';
-import { SavedData, loadData, clearData } from './data';
+import { clearData, loadData, SavedData } from './data';
 import Screen from './screen';
 
 export type ProviderApi = {
@@ -85,76 +85,69 @@ async function loadAllProviders(context: coc.ExtensionContext, config: PoemConfi
   const dirs = await fs.promises.readdir(config.providersDir);
 
   return Promise.all(dirs.map((dir) => loadProvider(dir, context, config)))
-    .then((xs) => xs.filter((x) => x)) as Promise<(ProviderApi & { required: any })[]>;
+    .then((xs) => xs.filter((p) => p)) as Promise<(ProviderApi & { required: any })[]>;
 }
 
-async function isAvailable(item: ProviderApi & { required: any }) {
-  const { required } = item;
+async function buildProvider(p: ProviderApi & { required: any }): Promise<Provider> {
+  const shouldUseBrowser = await callMaybeAsync(p.required.shouldUseBrowser, p);
+  const fetchData = p.required.fetchData
+    ? (browser?: puppeteer.Browser) => callMaybeAsync(p.required.fetchData, { ...p, browser })
+    : undefined;
+  const prepareScreen = (screen: Screen) => callMaybeAsync(p.required.prepareScreen, { ...p, screen });
 
-  logger.info(`Checking availability of ${item.name}`);
-
-  return callMaybeAsync(required.shouldUpdate, item);
+  return {
+    ...p,
+    shouldUseBrowser,
+    fetchData,
+    prepareScreen,
+  };
 }
 
 export async function loadAvailableProviders(context: coc.ExtensionContext, config: PoemConfig): Promise<Provider[]> {
   const requireds = await loadAllProviders(context, config);
   const data = await loadData(context, config);
-  const enabled = await Promise.all(requireds.map(async (x) => {
+  const enabled = await Promise.all(requireds.map(async (p) => {
     // eslint-disable-next-line no-param-reassign
-    x.data = data; // attach data
+    if (data && data.provider === p.name) p.data = data; // attach data
 
     const [available, priority] = await Promise.all([
-      isAvailable(x),
-      callMaybeAsync(x.required.getPriority, x),
+      callMaybeAsync(p.required.shouldUpdate, p),
+      callMaybeAsync(p.required.getPriority, p),
     ]);
 
-    return { available, priority, ...x };
+    return { available, priority, ...p };
   }));
 
-  if (enabled.length === 0) { clearData(context, config); }
+  if (enabled.length === 0) {
+    return [];
+  }
 
-  const filtered = enabled
-    .filter((x) => x.available)
-    .sort((a, b) => b.priority - a.priority);
+  const sorted = enabled.sort((a, b) => b.priority - a.priority);
 
-  logger.info(`Loaded ${filtered.length} providers: ${filtered.map((x) => x.name).join(', ')}`);
+  // priority changed
+  if (sorted[0].name === data?.provider) {
+    return sorted[0].available ? [await buildProvider(sorted[0])] : [];
+  }
 
-  return Promise.all(filtered.map(async (x) => {
-    const shouldUseBrowser = await callMaybeAsync(x.required.shouldUseBrowser, x);
-    const fetchData = x.required.fetchData
-      ? (browser?: puppeteer.Browser) => callMaybeAsync(x.required.fetchData, { ...x, browser })
-      : undefined;
-    const prepareScreen = (screen: Screen) => callMaybeAsync(x.required.prepareScreen, { ...x, screen });
+  logger.info(`Provider priority changed, prev: ${data?.provider}, now: ${sorted[0].name}, clear data`);
+  await clearData(context, config);
 
-    return {
-      ...x,
-      data,
-      shouldUseBrowser,
-      fetchData,
-      prepareScreen,
-    };
-  }));
+  const filtered = sorted.filter((p) => p.available);
+
+  logger.info(`Loaded ${filtered.length} providers: ${filtered.map((p) => p.name).join(', ')}`);
+
+  return Promise.all(filtered.map(buildProvider));
 }
 
 export async function loadSingleProvider(data: SavedData, context: coc.ExtensionContext, config: PoemConfig): Promise<Provider|undefined> {
-  const name = data.content;
-  const x = await loadProvider(name, context, config);
+  const name = data.provider;
+  const p = await loadProvider(name, context, config);
 
-  if (x) x.data = data; // attach data
-  if (x && await isAvailable(x)) {
-    const shouldUseBrowser = await callMaybeAsync(x.required.shouldUseBrowser, x);
-    const fetchData = x.required.fetchData
-      ? (browser?: puppeteer.Browser) => callMaybeAsync(x.required.fetchData, { ...x, browser })
-      : undefined;
-    const prepareScreen = (screen: Screen) => callMaybeAsync(x.required.prepareScreen, { ...x, screen });
+  if (!p) return undefined;
 
-    return {
-      ...x,
-      data,
-      shouldUseBrowser,
-      fetchData,
-      prepareScreen,
-    };
+  if (data && data.provider === p.name) p.data = data; // attach data
+  if (await callMaybeAsync(p.required.shouldUpdate, p)) {
+    return buildProvider(p);
   }
 
   return undefined;
@@ -163,8 +156,8 @@ export async function loadSingleProvider(data: SavedData, context: coc.Extension
 export async function runProviderFetch(provider: Provider, context: coc.ExtensionContext, config: PoemConfig): Promise<Omit<SavedData, 'lastUpdated'>|undefined> {
   if (!provider.fetchData) {
     return {
+      provider: provider.name,
       type: PoemDataTypes.ProviderName,
-      content: provider.name,
     };
   }
 
@@ -194,6 +187,7 @@ export async function runProviderFetch(provider: Provider, context: coc.Extensio
   return {
     content,
     commands,
+    provider: provider.name,
     type: PoemDataTypes.Content,
   };
 }

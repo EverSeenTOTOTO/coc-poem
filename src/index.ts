@@ -28,15 +28,20 @@ async function fetch(context: ExtensionContext, config: PoemConfig) {
   const providers = await loadAvailableProviders(context, config);
 
   if (providers.length === 0) {
-    logger.warn('No providers found');
+    logger.warn('No available provider found');
     return undefined;
   }
 
   const cancel = createSpinner(providers[0].name);
   try {
-    const data = await runProviderFetch(providers[0], context, config);
+    const provider = providers[0];
+    const data = await runProviderFetch(provider, context, config);
 
-    return data && await saveData(context, config, data);
+    if (data) {
+      logger.info(`Save data for ${provider.name}`);
+      return await saveData(context, config, data);
+    }
+    return undefined;
   } catch (e) {
     return onerror()(e);
   } finally {
@@ -45,8 +50,6 @@ async function fetch(context: ExtensionContext, config: PoemConfig) {
 }
 
 function scheduleFetch(context: ExtensionContext, config: PoemConfig) {
-  logger.info('Schedule fetch');
-
   const timeout = setTimeout(() => {
     logger.info('Fetch started');
     fetch(context, config).catch(onerror());
@@ -64,7 +67,7 @@ async function show(context: ExtensionContext, config: PoemConfig) {
   const data = await loadData(context, config);
 
   if (!data) {
-    logger.warn('No data found, schedule fetching...');
+    logger.warn('No data found, schedule fetch');
     return scheduleFetch(context, config);
   }
 

@@ -87,7 +87,7 @@
       },
       {
         "title": "Display poem screen on vim startup",
-        "command": "poem.show",
+        "command": "poem.boot",
         "category": "poem"
       },
       {

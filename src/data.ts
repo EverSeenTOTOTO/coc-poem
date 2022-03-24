@@ -8,7 +8,8 @@ import Screen from './screen';
 export type SavedData = {
   lastUpdated: number,
   type: string,
-  content: string,
+  provider: string,
+  content?: string,
   commands?: string[]
 };
 
@@ -55,6 +56,6 @@ export async function displayData(context: ExtensionContext, config: PoemConfig,
     },
   });
 
-  await screen.render(data.content);
+  await screen.render(data.content ?? '');
   await screen.show();
 }

@@ -1,10 +1,16 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import { workspace } from 'coc.nvim';
 
+export type BufferWriteOptions = {
+  start: number,
+  end: number,
+  strictIndexing: boolean
+};
+
 export interface ROBuffer {
   id: number,
-  append(content: string, place?: string|number): Promise<void>;
-  redraw(content: string, place?: string|number): Promise<void>;
+  append(content: string): Promise<void>;
+  redraw(content: string, options?: BufferWriteOptions): Promise<void>;
 }
 
 export default async () => {
@@ -31,17 +37,16 @@ export default async () => {
 
   return {
     id,
-    append: async (content: string, place = '$') => {
+    append: async (content: string) => {
       if (await isInvalidBuffer()) { return; }
       await nvim.command('setl modifiable', true);
-      await nvim.command(`call appendbufline("${id}", "${place}", split("${content}", "\n"))`, true);
+      await nvim.buffer.then((buffer) => buffer.append(content.split('\n')));
       await nvim.command('setl nomodifiable nomodified', true);
     },
-    redraw: async (content: string, place = 1) => {
+    redraw: async (content: string, options?: BufferWriteOptions) => {
       if (await isInvalidBuffer()) { return; }
       await nvim.command('setl modifiable', true);
-      await nvim.command('silent %delete _', true);
-      await nvim.command(`call setbufline(${id}, ${place}, split("${content}", "\n"))`, true);
+      await nvim.buffer.then((buffer) => buffer.setLines(content.split('\n'), { start: 0, end: -1, strictIndexing: false, ...options }));
       await nvim.command('setl nomodifiable nomodified', true);
     },
   };

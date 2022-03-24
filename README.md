@@ -54,11 +54,13 @@ Saved data is always used for **NEXT** startup.
 ```mermaid
 flowchart LR
     fetch[poem.fetch] --> loadProvidrs[load providers and filter by shouldUpdate]
-    loadProvidrs --> noProvider{providers > 0?}
-    noProvider -- N --> clearSavedData[clear saved data]
-    clearSavedData --> pass[end]
-    noProvider -- Y --> selectFirst[sort by provider.priority and select first]
-    selectFirst -- provider --> hasFetch{has fetch?}
+    loadProvidrs --> hasProvider{providers > 0?}
+    hasProvider -- N --> pass[end]
+    hasProvider -- Y --> selectFirst[sort by provider.priority]
+    selectFirst -- first provider --> isSame[still previous provider?]
+    isSame -- N --> clearData[clear data]
+    isSame -- Y --> hasFetch{has fetch?}
+    clearData --> hasFetch
     hasFetch -- Y --> runFetch[fetch]
     hasFetch -- N, name --> updateData[save data]
     runFetch -- data and keybindings --> updateData
