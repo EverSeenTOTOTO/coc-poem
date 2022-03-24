@@ -1,9 +1,9 @@
 import { NAME, PoemCommands, PoemDataTypes } from '@/utils/constants';
 import { channel, logger, onerror } from '@/utils/logger';
+import createSpinner from '@/utils/spinner';
 import {
   commands, ExtensionContext, window, workspace,
 } from 'coc.nvim';
-import createSpinner from '@/utils/spinner';
 import loadConfig, { PoemConfig } from './config';
 import { displayData, loadData, saveData } from './data';
 import { loadAvailableProviders, loadSingleProvider, runProviderFetch, runProviderPrepare } from './provider';
@@ -88,7 +88,7 @@ async function show(context: ExtensionContext, config: PoemConfig) {
       if (provider) {
         await runProviderPrepare(provider, context, config);
       } else {
-        logger.error(`Failed to quick load provider, ${data.content} not found`);
+        logger.error(`Failed to quick load provider, ${data.provider} not found`);
       }
     }
   }
@@ -96,6 +96,7 @@ async function show(context: ExtensionContext, config: PoemConfig) {
   return scheduleFetch(context, config);
 }
 
+// TODO: still too slow, maybe drop coc.nvim?
 async function boot(context: ExtensionContext, config: PoemConfig) {
   if (await checkLimitations()) {
     return show(context, config);

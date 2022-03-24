@@ -21,7 +21,7 @@ export default async () => {
     await nvim.command('noautocmd enew');
   }
 
-  // FIXME: got wrong buffer id as async
+  // FIXME: got wrong buffer id because of async
   const id = await nvim.call('bufnr', ['%']);
 
   // see vim-startify

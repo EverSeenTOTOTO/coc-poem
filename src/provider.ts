@@ -49,7 +49,7 @@ const resolveProviderEntry = async (root: string, name: string) => {
   return fs.existsSync(entry) && fs.statSync(entry).isFile() ? entry : undefined;
 };
 
-async function loadProvider(name: string, context: coc.ExtensionContext, config: PoemConfig): Promise<(ProviderApi & { required: any })|undefined> {
+async function loadScript(name: string, context: coc.ExtensionContext, config: PoemConfig): Promise<(ProviderApi & { required: any })|undefined> {
   const entry = await resolveProviderEntry(config.providersDir, name);
 
   if (!entry) {
@@ -81,10 +81,10 @@ async function loadProvider(name: string, context: coc.ExtensionContext, config:
   }
 }
 
-async function loadAllProviders(context: coc.ExtensionContext, config: PoemConfig): Promise<(ProviderApi & { required: any })[]> {
+async function loadAllScripts(context: coc.ExtensionContext, config: PoemConfig): Promise<(ProviderApi & { required: any })[]> {
   const dirs = await fs.promises.readdir(config.providersDir);
 
-  return Promise.all(dirs.map((dir) => loadProvider(dir, context, config)))
+  return Promise.all(dirs.map((dir) => loadScript(dir, context, config)))
     .then((xs) => xs.filter((p) => p)) as Promise<(ProviderApi & { required: any })[]>;
 }
 
@@ -104,7 +104,7 @@ async function buildProvider(p: ProviderApi & { required: any }): Promise<Provid
 }
 
 export async function loadAvailableProviders(context: coc.ExtensionContext, config: PoemConfig): Promise<Provider[]> {
-  const requireds = await loadAllProviders(context, config);
+  const requireds = await loadAllScripts(context, config);
   const data = await loadData(context, config);
   const enabled = await Promise.all(requireds.map(async (p) => {
     // eslint-disable-next-line no-param-reassign
@@ -135,20 +135,16 @@ export async function loadAvailableProviders(context: coc.ExtensionContext, conf
   const filtered = sorted.filter((p) => p.available);
 
   logger.info(`Loaded ${filtered.length} providers: ${filtered.map((p) => p.name).join(', ')}`);
-
   return Promise.all(filtered.map(buildProvider));
 }
 
 export async function loadSingleProvider(data: SavedData, context: coc.ExtensionContext, config: PoemConfig): Promise<Provider|undefined> {
   const name = data.provider;
-  const p = await loadProvider(name, context, config);
+  const p = await loadScript(name, context, config);
 
   if (!p) return undefined;
-
   if (data && data.provider === p.name) p.data = data; // attach data
-  if (await callMaybeAsync(p.required.shouldUpdate, p)) {
-    return buildProvider(p);
-  }
+  if (await callMaybeAsync(p.required.shouldUpdate, p)) return buildProvider(p);
 
   return undefined;
 }
@@ -166,7 +162,7 @@ export async function runProviderFetch(provider: Provider, context: coc.Extensio
 
   context.subscriptions.push({
     dispose() {
-      // process.kill is not allowed in extension context
+      // FIXME: process.kill is not allowed in extension context
       if (pid) { cp.exec(`kill -9 ${pid}`); }
       browser?.close();
     },

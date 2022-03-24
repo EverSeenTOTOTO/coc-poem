@@ -24,7 +24,7 @@ module.exports.fetchData = async (api) => {
 module.exports.shouldUpdate = (options) => {
   const { data, logger } = options;
 
-  if (!data || data.content !== 'headless-browser') return true;
+  if (!data) return true;
 
   const lastUpdate = new Date(data.lastUpdated);
 
