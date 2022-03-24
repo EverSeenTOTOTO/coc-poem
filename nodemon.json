@@ -1,0 +1,18 @@
+{
+  "verbose": true,
+  "ignore": [
+    "dist/*",
+    ".git",
+    ".vscode",
+    "node_modules/**/node_modules",
+    "**/__test__/**"
+  ],
+  "watch": [
+    "src/*",
+    "rollup.config.js",
+    ".env"
+  ],
+  "exec": "make dev",
+  "ext": "js,json,ts,env",
+  "delay": 1000
+}
