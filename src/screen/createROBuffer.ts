@@ -9,6 +9,7 @@ export type BufferWriteOptions = {
 
 export interface ROBuffer {
   id: number,
+  close(): Promise<void>,
   append(content: string): Promise<void>;
   redraw(content: string, options?: BufferWriteOptions): Promise<void>;
 }
@@ -18,36 +19,42 @@ export default async () => {
 
   const shouldCreate = await nvim.commandOutput("echo line2byte('$') != -1");
   if (shouldCreate.trim() === '1') {
-    await nvim.command('noautocmd enew');
+    await nvim.command('noautocmd enew', true);
   }
 
-  // FIXME: got wrong buffer id because of async
-  const id = await nvim.call('bufnr', ['%']);
+  // from coc.nvim and vim-startify
+  nvim.pauseNotification();
+  nvim.call('bufnr', ['%'], true);
+  nvim.command('setl nobuflisted nocursorcolumn nocursorline nolist nonumber norelativenumber nospell noswapfile nofoldenable nowrap', true);
+  nvim.command('setl buftype=nofile bufhidden=hide colorcolumn= foldcolumn=0 matchpairs= signcolumn=no synmaxcol&', true);
+  nvim.command('setf log', true);
+  const res = await nvim.resumeNotification();
 
-  // see vim-startify
-  await nvim.command('silent! setlocal bufhidden=wipe colorcolumn= foldcolumn=0 matchpairs= modifiable nobuflisted nocursorcolumn nocursorline nolist nonumber noreadonly norelativenumber nospell noswapfile signcolumn=no synmaxcol&', true);
+  console.log(res[0], res[1]);
+
+  if (res[1]) {
+    throw new Error('Failed to create buffer');
+  }
+  const id = res[0][0];
 
   const isInvalidBuffer = async () => {
-    const [exists, currentId] = await Promise.all([
-      nvim.commandOutput(`echo bufexists(${id})`),
-      nvim.call('bufnr', ['%']),
-    ]);
-    return exists.trim() === '0' || currentId !== id;
+    const buffer = await nvim.buffer;
+    return !buffer.loaded || buffer.id !== id;
   };
 
   return {
     id,
     append: async (content: string) => {
       if (await isInvalidBuffer()) { return; }
-      await nvim.command('setl modifiable', true);
       await nvim.buffer.then((buffer) => buffer.append(content.split('\n')));
-      await nvim.command('setl nomodifiable nomodified', true);
     },
     redraw: async (content: string, options?: BufferWriteOptions) => {
       if (await isInvalidBuffer()) { return; }
-      await nvim.command('setl modifiable', true);
       await nvim.buffer.then((buffer) => buffer.setLines(content.split('\n'), { start: 0, end: -1, strictIndexing: false, ...options }));
-      await nvim.command('setl nomodifiable nomodified', true);
+    },
+    async close() {
+      if (await isInvalidBuffer()) { return; }
+      await nvim.command('silent bwipeout!', true);
     },
   };
 };

@@ -30,19 +30,35 @@ export default class Screen {
   }
 
   async show() {
-    await this.hide();
-    this.buffer = await (this._createBufferPromise ? this._createBufferPromise : createROBuffer());
-    this._createBufferPromise = undefined;
+    if (!this.buffer) {
+      this.buffer = await (this._createBufferPromise ? this._createBufferPromise : createROBuffer());
+      this._createBufferPromise = undefined;
+    }
+
+    logger.info(`Start render: ${this.buffer?.id}, FPS: ${this.FPS}`);
 
     return new Promise<void>((resolve) => {
       this.interval = setInterval(() => {
-        this.buffer?.redraw(this.data).catch(onerror()).finally(resolve);
+        this.buffer?.redraw(this.data)
+          .catch(onerror())
+          .finally(resolve);
       }, 1000 / this.FPS);
-      logger.info(`Started render, FPS: ${this.FPS}`);
 
-      events.on('BufHidden', (id) => {
+      events.on('BufUnload', async (id) => {
+        if (this.buffer?.id === id) {
+          logger.info(`Buffer unloaded: ${id}`);
+          await this.hide();
+          await this.buffer?.close().then(() => {
+            logger.info(`Buffer closed: ${this.buffer?.id}`);
+          });
+          this.buffer = undefined;
+        }
+      });
+
+      events.on('BufHidden', async (id) => {
         if (id === this.buffer?.id) {
-          this.hide();
+          logger.info(`Buffer hidden: ${id}`);
+          await this.hide();
         }
       });
     });
@@ -54,6 +70,5 @@ export default class Screen {
       this.interval = undefined;
       logger.info('Stopped render');
     }
-    this.buffer = undefined;
   }
 }

@@ -9,8 +9,9 @@
   ],
   "watch": [
     "src/*",
+    "examples/*",
     "rollup.config.js",
-    ".env"
+    "makefile"
   ],
   "exec": "make dev",
   "ext": "js,json,ts,env",

@@ -12,7 +12,7 @@ async function checkLimitations() {
   const { nvim } = workspace;
   const cannotInvoke = await nvim.commandOutput('echo argc() || line2byte(\'$\') != -1 || v:progname !~? \'^[-gmnq]\\=vim\\=x\\=\\%[\\.exe]$\' || &insertmode');
   if (cannotInvoke.trim() === '1') {
-    logger.warn(`Cannot invoke ${NAME}, you might be in insert mode, running vim with extra args or using gvim`);
+    logger.warn(`Cannot boot ${NAME}, you might be in insert mode, running vim with extra args or using gvim`);
     return false;
   }
 
@@ -124,6 +124,11 @@ export async function activate(context: ExtensionContext): Promise<void> {
   registerCommand(PoemCommands.FETCH, () => {
     return fetch(context, config).catch(onerror());
   });
+
+  // don't warry if coc.nvim is not ready
+  // see neoclide/coc.nvim/src/attach.ts
+  // await plugin.ready
+  // await plugin.cocAction(method, ...args)
   registerCommand(PoemCommands.BOOT, async () => {
     return boot(context, config).catch(onerror());
   });

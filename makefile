@@ -2,7 +2,6 @@ SHELL := /bin/bash
 
 DIST ?= dist
 NAME ?= coc-poem
-COC_EXTDIR = ~/.config/coc/extensions/node_modules/@everseen/coc-poem
 
 lint:
 	npx eslint --fix .
@@ -18,7 +17,8 @@ build: clean
 	npx rollup -c rollup.config.js
 
 dev: build
-	cp -rv ${DIST}/index.js ${COC_EXTDIR}/dist/
+	cp -rv ${DIST}/index.js ~/.config/coc/extensions/node_modules/@everseen/${NAME}/${DIST}/
+	cp -rv examples/* ~/.config/${NAME}/
 
 watch:
 	npx nodemon --config nodemon.json

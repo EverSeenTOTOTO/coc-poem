@@ -108,7 +108,7 @@ export async function loadAvailableProviders(context: coc.ExtensionContext, conf
   const data = await loadData(context, config);
   const enabled = await Promise.all(requireds.map(async (p) => {
     // eslint-disable-next-line no-param-reassign
-    if (data && data.provider === p.name) p.data = data; // attach data
+    if (data && data.provider === p.name) p.data = data; // attach previous data
 
     const [available, priority] = await Promise.all([
       callMaybeAsync(p.required.shouldUpdate, p),
@@ -123,13 +123,15 @@ export async function loadAvailableProviders(context: coc.ExtensionContext, conf
   }
 
   const sorted = enabled.sort((a, b) => b.priority - a.priority);
+  const prevProvider = sorted.filter((x) => x.name === data?.provider)[0];
 
-  // priority changed
-  if (sorted[0].name === data?.provider) {
+  logger.info(`Provider priority, prev: ${data?.provider}(${prevProvider.priority ?? 'Deleted'}), now: ${sorted[0].name}(${sorted[0].priority})`);
+  // priority not change
+  if (sorted[0].name === prevProvider.name) {
     return sorted[0].available ? [await buildProvider(sorted[0])] : [];
   }
 
-  logger.info(`Provider priority changed, prev: ${data?.provider}, now: ${sorted[0].name}, clear data`);
+  logger.info(`Provider changed to ${sorted[0].name}, will clear cached data`);
   await clearData(context, config);
 
   const filtered = sorted.filter((p) => p.available);

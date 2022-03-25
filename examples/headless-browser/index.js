@@ -1,5 +1,5 @@
 module.exports.shouldUseBrowser = true;
-module.exports.getPriority = 3;
+module.exports.getPriority = 0;
 
 module.exports.fetchData = async (api) => {
   const { name, logger, browser } = api;
