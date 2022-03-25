@@ -93,7 +93,9 @@ async function buildProvider(p: ProviderApi & { required: any }): Promise<Provid
   const fetchData = p.required.fetchData
     ? (browser?: puppeteer.Browser) => callMaybeAsync(p.required.fetchData, { ...p, browser })
     : undefined;
-  const prepareScreen = (screen: Screen) => callMaybeAsync(p.required.prepareScreen, { ...p, screen });
+  const prepareScreen = p.required.prepareScreen
+    ? (screen: Screen) => callMaybeAsync(p.required.prepareScreen, { ...p, screen })
+    : undefined;
 
   return {
     ...p,
@@ -123,11 +125,11 @@ export async function loadAvailableProviders(context: coc.ExtensionContext, conf
   }
 
   const sorted = enabled.sort((a, b) => b.priority - a.priority);
-  const prevProvider = sorted.filter((x) => x.name === data?.provider)[0];
+  const prevProvider = data ? sorted.filter((x) => x.name === data?.provider)[0] : undefined;
 
-  logger.info(`Provider priority, prev: ${data?.provider}(${prevProvider.priority ?? 'Deleted'}), now: ${sorted[0].name}(${sorted[0].priority})`);
+  logger.info(`Provider priority, prev: ${data?.provider}(${prevProvider?.priority ?? 'Deleted'}), now: ${sorted[0].name}(${sorted[0].priority})`);
   // priority not change
-  if (sorted[0].name === prevProvider.name) {
+  if (sorted[0].name === prevProvider?.name) {
     return sorted[0].available ? [await buildProvider(sorted[0])] : [];
   }
 

@@ -94,7 +94,7 @@ export interface ProviderUD {
 
 + default: `true`
 
-Whether to fetch provider data at this time, the fetch will run in backend silently.
+Whether to fetch provider data at this time, the fetch will run in backend silently. If you use `prepareScreen` to render, leave this option `true`.
 
 #### `shouldUseBrowser`
 
