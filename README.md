@@ -42,7 +42,7 @@ flowchart LR
     loadSavedData -- saved data --> isDirectData{is screen content or provider name}
     isDirectData -- screen content --> display[display data]
     display --> executeCmds[exec keybinding commands]
-    isDirectData -- provider name --> loadProvider[load provider and run prepare]
+    isDirectData -- provider name --> loadProvider[load provider and run prepareScreen]
     executeCmds --> schedule
     loadProvider --> schedule
 ```
@@ -59,11 +59,11 @@ flowchart LR
     hasProvider -- Y --> selectFirst[sort by provider.priority]
     selectFirst -- first provider --> isSame[still previous provider?]
     isSame -- N --> clearData[clear data]
-    isSame -- Y --> hasFetch{has fetch?}
+    isSame -- Y --> hasFetch{has fetchData?}
     clearData --> hasFetch
-    hasFetch -- Y --> runFetch[fetch]
+    hasFetch -- Y --> runFetch[fetchData]
     hasFetch -- N, name --> updateData[save data]
-    runFetch -- data and keybindings --> updateData
+    runFetch -- data and commands --> updateData
     updateData --> pass
 ```
 
@@ -116,9 +116,7 @@ Describe how the provider fetches data. This is not required because you may wan
 
 #### `prepareScreen`
 
-> **The only function a provider should implement.**
-
-Descrbe how the provider renders. You can also bind your own keybindings for the poem screen buffer in this function.
+Descrbe how the provider render realtime data. Note it is exclusive with `fetchData`. Also, you can bind your own keybindings for the poem screen buffer in this function.
 
 ## Extension Settings
 
@@ -134,7 +132,7 @@ Where to find your provider scripts, each folder is considered as a provider if 
 
 + default: `60000`(ms)
 
-When to start updating provider in background.
+When to start updating provider in background after nvim launched.
 
 ### `poem.screenFPS?: number`
 
@@ -142,7 +140,7 @@ When to start updating provider in background.
 
 The poem screen refreshes `<poem.screenFPS>` times per second. Don't set too high because the render is async and that may cause unexpected behavior.
 
-### `poem.launchBrowsers: ?`
+### `poem.launchBrowsers?: object`
 
 How to launch puppeteer browser, the option will be passed to `puppeteer.launch`. Default:
 
@@ -166,3 +164,6 @@ How to launch puppeteer browser, the option will be passed to `puppeteer.launch`
 
 I use this extension to fetch a Chinese poem from the Internet every day 🍵~
 
+### Startup too slow (about 1s)?
+
+Well, I guess the communication between nodejs and nvim do takes a while, and this extension requires the coc.nvim context ready. I'am trying to find a better way to render.

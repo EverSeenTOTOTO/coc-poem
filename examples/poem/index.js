@@ -1,5 +1,5 @@
 module.exports.shouldUseBrowser = true;
-module.exports.getPriority = 1;
+module.exports.getPriority = 3;
 
 module.exports.shouldUpdate = (options) => {
   const { data, logger } = options;
