@@ -1,5 +1,7 @@
 # @everseen/coc-poem
 
+**!!! Note: This package is deprecated and will no longer be maintained. The author is now using neovim with lua capability most of time.**
+
 A [con.nvim](https://github.com/neoclide/coc.nvim) plugin to render custom vim welcome screen.
 
 ## Usage
